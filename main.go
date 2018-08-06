@@ -3,6 +3,7 @@ package main
 import (
 	"path/filepath"
 	"os"
+	. "path"
 	"os/exec"
 	"fmt"
 	"bytes"
@@ -43,10 +44,6 @@ var status = map[string]aurora.Value {
 }
 
 func main() {
-	fmt.Println("###############################")
-	fmt.Println("## Git repo status in Golang ##")
-	fmt.Println("###############################")
-	fmt.Println()
 
 	visitDirs := make([]string, 10)
 	excludeDirs := make(map[string]bool)
@@ -58,14 +55,14 @@ func main() {
 		}
 	}
 
-	fmt.Println("Directory to SKIP")
+	fmt.Println("Directory to SKIP:")
 	for d, _ := range excludeDirs {
 		fmt.Println("   " + d)
 	}
 	fmt.Println()
 
 	for _, dir := range visitDirs {
-		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
+		filepath.Walk(dir, func(path string, info os.FileInfo, err error) (dirErr error) {
 			/* defer func(){
 				fmt.Println("EXITING", path)
 			}()
@@ -73,7 +70,7 @@ func main() {
 
 			if err != nil {
 				//fmt.Println("Error", err, "at", path)
-				return err
+				return
 			}
 			if _, toSkip := excludeDirs[path]; info.IsDir() && toSkip {
 				//fmt.Println("Skipping", path)
@@ -81,56 +78,57 @@ func main() {
 			}
 			
 			if _, fileErr := os.Stat(path + "/.git/"); info.IsDir() && fileErr == nil {
-				cdErr := os.Chdir(path)
-				if cdErr != nil {
-					fmt.Printf("Can't change dir")
-				}
-				cmd := exec.Command("git", "status", "-s")
-				var out bytes.Buffer
-				cmd.Stdout = &out
-				err := cmd.Run()
-
-				errCode := ""
-				if err != nil {
-					errCode = "X "
-				}
-				
-				cmd = exec.Command("git", "rev-parse", "--show-toplevel")
-				var name bytes.Buffer
-				cmd.Stdout = &name
-				err = cmd.Run()
-
-				repoName := ""
-				if err == nil {
-					subDir := strings.Split(name.String(), "/")
-					repoName = subDir[len(subDir)-1]
-				}
-
-				fmt.Printf("%v%v%v - %v", aurora.Red(errCode), aurora.Blue("GIT"), aurora.Blue(":" + path), repoName)
-				//fmt.Println(aurora.Blue("GIT") + aurora.Red(errCode) + aurora.Blue(":" + path))
-				if err == nil {
-					files := strings.Split(out.String(), "\n")
-					if len(files) == 1 {
-						fmt.Printf("%v\n\n", status["--"])
-						return filepath.SkipDir
-					}
-					var messageType string
-					for _, line := range files {
-						if len(line) < 2 {
-							continue
-						}
-						msgType := line[:2]
-						if msgType != messageType {
-							fmt.Println(status[msgType])
-							messageType = msgType
-						}
-						fmt.Printf("    %v\n", line[2:])
-					}
-				}
-				fmt.Println()
-				return filepath.SkipDir
+				dirErr = statusRepo(path)
 			}
-			return nil
+			return
 		})
 	}
+}
+
+func statusRepo(path string) error {
+
+	if cdErr := os.Chdir(path); cdErr != nil {
+		fmt.Printf("Can't change dir")
+		return cdErr
+	}
+
+	var out bytes.Buffer
+	gitStatus := exec.Command("git", "status", "-s")
+	gitStatus.Stdout = &out
+
+	errCode := ""
+	if err := gitStatus.Run(); err != nil {
+		errCode = "X "
+	}
+	
+	var name bytes.Buffer
+	gitName := exec.Command("git", "rev-parse", "--show-toplevel")
+	gitName.Stdout = &name
+	gitName.Run()
+
+	repoName := Base(name.String())
+	if index := strings.Index(repoName, "\n"); index != -1 {
+		repoName = repoName[:index]
+	}
+	fmt.Printf("%v%v%v - %v\n", aurora.Red(errCode), aurora.Blue("GIT"), aurora.Blue(":" + path), repoName)
+
+	files := strings.Split(out.String(), "\n")
+	if len(files) == 1 {
+		fmt.Println(status["--"])
+	} else {
+		var messageType string
+		for _, file := range files {
+			if len(file) < 2 {
+				continue
+			}
+			msgType := file[:2]
+			if msgType != messageType {
+				fmt.Println(status[msgType])
+				messageType = msgType
+			}
+			fmt.Println("    ", file[2:])
+		}
+	}
+	fmt.Println()
+	return filepath.SkipDir
 }
