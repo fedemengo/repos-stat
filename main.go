@@ -12,24 +12,24 @@ import (
 )
 
 var status = map[string]aurora.Value {
-	//"M ":	"updated in index",
-	//"MM":	"updated in index",
-	//"MD":	"updated in index",
-	//"A ":	"added to index",
-	//"AM":	"added to index",
-	//"AD":	"added to index",
+	//"M ":		"updated in index",
+	//"MM":		"updated in index",
+	//"MD":		"updated in index",
+	//"A ":		"added to index",
+	//"AM":		"added to index",
+	//"AD":		"added to index",
 	//"D":		"deleted from index",
-	//"R ":	"renamed in index",
-	//"RM":	"renamed in index",
-	//"RD":	"renamed in index",
-	//"C ":	"copied in index",
-	//"CM":	"copied in index",
-	//"CD":	"copied in index",
-	" M":	aurora.Brown("MODIFIED"),
-	" D":	aurora.Red("DELETED"),
-	//"DR":	"renamed in work tree",
+	//"R ":		"renamed in index",
+	//"RM":		"renamed in index",
+	//"RD":		"renamed in index",
+	//"C ":		"copied in index",
+	//"CM":		"copied in index",
+	//"CD":		"copied in index",
+	" M":		aurora.Brown("MODIFIED"),
+	" D":		aurora.Red("DELETED"),
+	//"DR":		"renamed in work tree",
 	//" DR":	"renamed in work tree",
-	//"DC":	"copied in work tree",
+	//"DC":		"copied in work tree",
 	//" DC":	"copied in work tree",
 	//"DD":		"unmerged, both deleted",
 	//"AU":		"unmerged, added by us",
@@ -39,7 +39,7 @@ var status = map[string]aurora.Value {
 	//"AA":		"unmerged, both added",
 	//"UU":		"unmerged, both modified",
 	"??":		aurora.Magenta("UNTRACKED"),
-	//"!!":		"ignored",
+	"!!":		aurora.Gray("IGNORED"),
 	"--":		aurora.Green("CLEAN"),
 }
 
@@ -55,7 +55,7 @@ func main() {
 		}
 	}
 
-	fmt.Println("Directory to SKIP:")
+	fmt.Println(aurora.Cyan("Directory to SKIP:"))
 	for d, _ := range excludeDirs {
 		fmt.Println("   " + d)
 	}
@@ -78,14 +78,14 @@ func main() {
 			}
 			
 			if _, fileErr := os.Stat(path + "/.git/"); info.IsDir() && fileErr == nil {
-				dirErr = statusRepo(path)
+				dirErr = statusRepo(path, true)
 			}
 			return
 		})
 	}
 }
 
-func statusRepo(path string) error {
+func statusRepo(path string, ignoreClean bool) error {
 
 	if cdErr := os.Chdir(path); cdErr != nil {
 		fmt.Printf("Can't change dir")
@@ -110,11 +110,25 @@ func statusRepo(path string) error {
 	if index := strings.Index(repoName, "\n"); index != -1 {
 		repoName = repoName[:index]
 	}
-	fmt.Printf("%v%v%v - %v\n", aurora.Red(errCode), aurora.Blue("GIT"), aurora.Blue(":" + path), repoName)
 
 	files := strings.Split(out.String(), "\n")
+	if errCode != "" || len(files) != 1 || !ignoreClean {
+		printRepo(path, errCode, repoName, files)
+	}
+
+	return filepath.SkipDir
+}
+
+func printRepo(path, repoError, name string, files []string){
+	if repoError != "" {
+		fmt.Printf("%v%v\n", aurora.Red(repoError), aurora.Blue(path))
+		fmt.Println()
+		return
+	}
+	fmt.Printf("%v%v - %v\n", aurora.Red(repoError), aurora.Blue(path), name)
+
 	if len(files) == 1 {
-		fmt.Println(status["--"])
+			fmt.Println(status["--"])
 	} else {
 		var messageType string
 		for _, file := range files {
@@ -130,5 +144,4 @@ func statusRepo(path string) error {
 		}
 	}
 	fmt.Println()
-	return filepath.SkipDir
 }
