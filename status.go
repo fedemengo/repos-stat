@@ -49,8 +49,8 @@ func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 	}
 
 	if errCode != "X" && len(files) == 1 && skipClean {
-	return filepath.SkipDir
-}
+		return filepath.SkipDir
+	}
 
 	printRepo(repoPath, errCode, repoName, files)
 	return filepath.SkipDir
@@ -90,9 +90,9 @@ func getMessage(symbol byte) string {
 	case 'D':
 		return color.Red("DELETED")
 	case 'M':
-		return color.LightYellow("MODIFIED")
+		return color.Yellow("MODIFIED")
 	case '?':
-		return color.LightPurple("UNTRACKED")
+		return color.Purple("UNTRACKED")
 	case '-':
 		return color.Green("CLEAN")
 	}
@@ -135,8 +135,13 @@ func printRepo(path, repoError, name string, files []string) {
 
 		var messageType string
 		for idx := range container {
-
-			fmt.Println(color.Cyan(loc[idx]))
+			if container[idx].Len() == 0 {
+				fmt.Println(color.LightCyan(loc[idx]))
+				fmt.Println(color.Green("   CLEAN"))
+				fmt.Println()
+				continue
+			}
+			fmt.Println(color.LightCyan(loc[idx]))
 			for container[idx].Len() > 0 {
 
 				file := heap.Pop(&container[idx])
@@ -145,7 +150,7 @@ func printRepo(path, repoError, name string, files []string) {
 					fmt.Println("  ", msgType)
 					messageType = msgType
 				}
-				fmt.Println("    ", (file.(data)).fileName)
+				fmt.Println("\t", (file.(data)).fileName)
 			}
 			fmt.Println()
 		}
