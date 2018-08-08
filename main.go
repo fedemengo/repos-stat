@@ -27,6 +27,7 @@ func main() {
 	}()
 
 	skipClean := false
+	skipBroken := false
 
 	visitDirs := make([]string, 10)
 	excludeDirs := make(map[string]bool)
@@ -38,6 +39,8 @@ func main() {
 			}
 			if dir[2:] == "no-clean" {
 				skipClean = true
+			} else if dir[2:] == "no-broken" {
+				skipBroken = true
 			} else {
 				panic("Option unknown")
 			}
@@ -75,7 +78,7 @@ func main() {
 			}
 
 			if _, fileErr := os.Stat(path + "/.git/"); info.IsDir() && fileErr == nil {
-				dirErr = GetStatus(path, skipClean)
+				dirErr = GetStatus(path, skipClean, skipBroken)
 			}
 			return
 		})

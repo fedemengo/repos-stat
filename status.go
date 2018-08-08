@@ -16,7 +16,7 @@ import (
 var loc = [...]string{"Index", "Working Tree"}
 
 // GetStatus display the status of each repo
-func GetStatus(repoPath string, ignoreClean bool) error {
+func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 
 	if cdErr := os.Chdir(repoPath); cdErr != nil {
 		fmt.Printf("Can't change dir")
@@ -43,10 +43,16 @@ func GetStatus(repoPath string, ignoreClean bool) error {
 	}
 
 	files := strings.Split(out.String(), "\n")
-	if errCode != "" || len(files) != 1 || !ignoreClean {
-		printRepo(repoPath, errCode, repoName, files)
+
+	if errCode != "" && skipBroken {
+		return filepath.SkipDir
 	}
 
+	if errCode != "X" && len(files) == 1 && skipClean {
+	return filepath.SkipDir
+}
+
+	printRepo(repoPath, errCode, repoName, files)
 	return filepath.SkipDir
 }
 
