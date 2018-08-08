@@ -1,65 +1,62 @@
 package main
 
 import (
-	"path/filepath"
-	"os"
-	. "path"
-	"os/exec"
 	"fmt"
-	"bytes"
-	"strings"
-	"github.com/logrusorgru/aurora"
+	"os"
+	"path/filepath"
+
+	"github.com/bclicn/color"
 )
 
-var status = map[string]aurora.Value {
-	//"M ":		"updated in index",
-	//"MM":		"updated in index",
-	//"MD":		"updated in index",
-	//"A ":		"added to index",
-	//"AM":		"added to index",
-	//"AD":		"added to index",
-	//"D":		"deleted from index",
-	//"R ":		"renamed in index",
-	//"RM":		"renamed in index",
-	//"RD":		"renamed in index",
-	//"C ":		"copied in index",
-	//"CM":		"copied in index",
-	//"CD":		"copied in index",
-	" M":		aurora.Brown("MODIFIED"),
-	" D":		aurora.Red("DELETED"),
-	//"DR":		"renamed in work tree",
-	//" DR":	"renamed in work tree",
-	//"DC":		"copied in work tree",
-	//" DC":	"copied in work tree",
-	//"DD":		"unmerged, both deleted",
-	//"AU":		"unmerged, added by us",
-	//"UD":		"unmerged, deleted by them",
-	//"UA":		"unmerged, added by them",
-	//"DU":		"unmerged, deleted by us",
-	//"AA":		"unmerged, both added",
-	//"UU":		"unmerged, both modified",
-	"??":		aurora.Magenta("UNTRACKED"),
-	"!!":		aurora.Gray("IGNORED"),
-	"--":		aurora.Green("CLEAN"),
+func help() {
+	fmt.Println("Golang repository status")
+	fmt.Println()
+	fmt.Println("Usage")
+	fmt.Println("    repo-stat [options] directory-to-visit [directory-to-skip]")
+	fmt.Println()
+	fmt.Println("Options")
+	fmt.Println("    --no-clean\tSkip clean repository")
 }
 
 func main() {
 
+	defer func() {
+		if r := recover(); r != nil {
+			help()
+		}
+	}()
+
+	skipClean := false
+
 	visitDirs := make([]string, 10)
 	excludeDirs := make(map[string]bool)
+	endOption := false
 	for _, dir := range os.Args[1:] {
-		if dir[0] == '-' {
+		if len(dir) > 2 && dir[:2] == "--" {
+			if endOption {
+				panic("Options should be used first")
+			}
+			if dir[2:] == "no-clean" {
+				skipClean = true
+			} else {
+				panic("Option unknown")
+			}
+		} else if dir[0] == '-' {
+			endOption = true
 			excludeDirs[dir[1:]] = true
 		} else {
+			endOption = true
 			visitDirs = append(visitDirs, dir)
 		}
 	}
 
-	fmt.Println(aurora.Cyan("Directory to SKIP:"))
-	for d, _ := range excludeDirs {
-		fmt.Println("   " + d)
+	if len(excludeDirs) > 0 {
+		fmt.Println(color.Cyan("Directory to SKIP:"))
+		for d := range excludeDirs {
+			fmt.Println("   " + d)
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	for _, dir := range visitDirs {
 		filepath.Walk(dir, func(path string, info os.FileInfo, err error) (dirErr error) {
@@ -76,72 +73,11 @@ func main() {
 				//fmt.Println("Skipping", path)
 				return filepath.SkipDir
 			}
-			
+
 			if _, fileErr := os.Stat(path + "/.git/"); info.IsDir() && fileErr == nil {
-				dirErr = statusRepo(path, true)
+				dirErr = GetStatus(path, skipClean)
 			}
 			return
 		})
 	}
-}
-
-func statusRepo(path string, ignoreClean bool) error {
-
-	if cdErr := os.Chdir(path); cdErr != nil {
-		fmt.Printf("Can't change dir")
-		return cdErr
-	}
-
-	var out bytes.Buffer
-	gitStatus := exec.Command("git", "status", "-s")
-	gitStatus.Stdout = &out
-
-	errCode := ""
-	if err := gitStatus.Run(); err != nil {
-		errCode = "X "
-	}
-	
-	var name bytes.Buffer
-	gitName := exec.Command("git", "rev-parse", "--show-toplevel")
-	gitName.Stdout = &name
-	gitName.Run()
-
-	repoName := Base(name.String())
-	if index := strings.Index(repoName, "\n"); index != -1 {
-		repoName = repoName[:index]
-	}
-
-	files := strings.Split(out.String(), "\n")
-	if errCode != "" || len(files) != 1 || !ignoreClean {
-		printRepo(path, errCode, repoName, files)
-	}
-
-	return filepath.SkipDir
-}
-
-func printRepo(path, repoError, name string, files []string){
-	if repoError != "" {
-		fmt.Printf("%v%v\n", aurora.Red(repoError), aurora.Blue(path))
-		fmt.Println()
-		return
-	}
-	fmt.Printf("%v%v - %v\n", aurora.Red(repoError), aurora.Blue(path), name)
-
-	if len(files) == 1 {
-			fmt.Println(status["--"])
-	} else {
-		var messageType string
-		for _, file := range files {
-			if len(file) < 2 {
-				continue
-			}
-			msgType := file[:2]
-			if msgType != messageType {
-				fmt.Println(status[msgType])
-				messageType = msgType
-			}
-			fmt.Println("    ", file[2:])
-		}
-	}
-	fmt.Println()
 }
