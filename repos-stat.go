@@ -31,12 +31,8 @@ func main() {
 
 	visitDirs := make([]string, 10)
 	excludeDirs := make(map[string]bool)
-	endOption := false
 	for _, dir := range os.Args[1:] {
 		if len(dir) > 2 && dir[:2] == "--" {
-			if endOption {
-				panic("Options should be used first")
-			}
 			if dir[2:] == "no-clean" {
 				skipClean = true
 			} else if dir[2:] == "no-broken" {
@@ -45,10 +41,8 @@ func main() {
 				panic("Option unknown")
 			}
 		} else if dir[0] == '-' {
-			endOption = true
 			excludeDirs[dir[1:]] = true
 		} else {
-			endOption = true
 			visitDirs = append(visitDirs, dir)
 		}
 	}

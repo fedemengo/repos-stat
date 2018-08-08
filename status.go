@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 
@@ -32,16 +31,6 @@ func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 		errCode = "X"
 	}
 
-	var name bytes.Buffer
-	gitName := exec.Command("git", "rev-parse", "--show-toplevel")
-	gitName.Stdout = &name
-	gitName.Run()
-
-	repoName := path.Base(name.String())
-	if index := strings.Index(repoName, "\n"); index != -1 {
-		repoName = repoName[:index]
-	}
-
 	files := strings.Split(out.String(), "\n")
 
 	if errCode != "" && skipBroken {
@@ -52,7 +41,7 @@ func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 		return filepath.SkipDir
 	}
 
-	printRepo(repoPath, errCode, repoName, files)
+	printRepo(repoPath, errCode, files)
 	return filepath.SkipDir
 }
 
@@ -69,8 +58,6 @@ func (h heapData) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
 
 // Push insert an element into the heap
 func (h *heapData) Push(x interface{}) {
-	// Push and Pop use pointer receivers because they modify the slice's length,
-	// not just its contents.
 	*h = append(*h, x.(data))
 }
 
@@ -99,14 +86,14 @@ func getMessage(symbol byte) string {
 	return ""
 }
 
-func printRepo(path, repoError, name string, files []string) {
+func printRepo(path, repoError string, files []string) {
 	if repoError != "" {
 		fmt.Printf("%v %v\n", color.Red(repoError), color.Blue(path))
 		fmt.Println()
 		return
 	}
 
-	fmt.Printf("%v%v - %v\n", color.Red(repoError), color.Blue(path), name)
+	fmt.Printf("%v%v\n", color.Red(repoError), color.Blue(path))
 	if len(files) == 1 {
 		fmt.Println(getMessage('-'))
 		fmt.Println()
@@ -135,22 +122,20 @@ func printRepo(path, repoError, name string, files []string) {
 
 		var messageType string
 		for idx := range container {
-			if container[idx].Len() == 0 {
-				fmt.Println(color.LightCyan(loc[idx]))
-				fmt.Println(color.Green("   CLEAN"))
-				fmt.Println()
-				continue
-			}
 			fmt.Println(color.LightCyan(loc[idx]))
-			for container[idx].Len() > 0 {
-
-				file := heap.Pop(&container[idx])
-				msgType := getMessage((file.(data)).code)
-				if messageType != msgType {
-					fmt.Println("  ", msgType)
-					messageType = msgType
+			
+			if container[idx].Len() == 0 {
+				fmt.Println("  ", getMessage('-'))
+			} else {
+				for container[idx].Len() > 0 {
+					file := heap.Pop(&container[idx])
+					msgType := getMessage((file.(data)).code)
+					if messageType != msgType {
+						fmt.Println("  ", msgType)
+						messageType = msgType
+					}
+					fmt.Println("\t", (file.(data)).fileName)
 				}
-				fmt.Println("\t", (file.(data)).fileName)
 			}
 			fmt.Println()
 		}
