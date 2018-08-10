@@ -8,17 +8,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/bclicn/color"
 )
-
-var loc = [...]string{"Index", "Working Tree"}
 
 // GetStatus display the status of each repo
 func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 
 	if cdErr := os.Chdir(repoPath); cdErr != nil {
-		fmt.Printf("Can't change dir")
 		return cdErr
 	}
 
@@ -26,22 +21,21 @@ func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 	gitStatus := exec.Command("git", "status", "-s")
 	gitStatus.Stdout = &out
 
-	errCode := ""
+	broken := false
 	if err := gitStatus.Run(); err != nil {
-		errCode = "X"
+		broken = true
 	}
 
 	files := strings.Split(out.String(), "\n")
-
-	if errCode != "" && skipBroken {
-		return filepath.SkipDir
+	clean := false
+	if !broken && len(files) == 1 {
+		clean = true
 	}
 
-	if errCode != "X" && len(files) == 1 && skipClean {
-		return filepath.SkipDir
+	if (!broken && !clean) || (broken && !skipBroken) || (clean && !skipClean) {
+		printRepo(repoPath, files, broken, clean)
 	}
 
-	printRepo(repoPath, errCode, files)
 	return filepath.SkipDir
 }
 
@@ -70,33 +64,15 @@ func (h *heapData) Pop() interface{} {
 	return x
 }
 
-func getMessage(symbol byte) string {
-	switch symbol {
-	case 'A':
-		return color.Green("ADDED")
-	case 'D':
-		return color.Red("DELETED")
-	case 'M':
-		return color.Yellow("MODIFIED")
-	case '?':
-		return color.Purple("UNTRACKED")
-	case '-':
-		return color.Green("CLEAN")
-	}
-	return ""
-}
-
-func printRepo(path, repoError string, files []string) {
-	if repoError != "" {
-		fmt.Printf("%v %v\n", color.Red(repoError), color.Blue(path))
-		fmt.Println()
+func printRepo(path string, files []string, broken, clean bool) {
+	if broken {
+		fmt.Printf("%v %v\n\n", PathColored(path), ErrorSymbol)
 		return
 	}
 
-	fmt.Printf("%v%v\n", color.Red(repoError), color.Blue(path))
-	if len(files) == 1 {
-		fmt.Println(getMessage('-'))
-		fmt.Println()
+	fmt.Printf("%v\n", PathColored(path))
+	if clean {
+		fmt.Printf("%v\n\n", Message['-'])
 	} else {
 		var container [2]heapData
 		for _, h := range container {
@@ -122,22 +98,22 @@ func printRepo(path, repoError string, files []string) {
 
 		var messageType string
 		for idx := range container {
-			fmt.Println(color.LightCyan(loc[idx]))
+			fmt.Printf("%v\n", Location[idx])
 			
 			if container[idx].Len() == 0 {
-				fmt.Println("  ", getMessage('-'))
+				fmt.Printf("  %v\n", Message['-'])
 			} else {
 				for container[idx].Len() > 0 {
 					file := heap.Pop(&container[idx])
-					msgType := getMessage((file.(data)).code)
+					msgType := Message[(file.(data)).code]
 					if messageType != msgType {
-						fmt.Println("  ", msgType)
+						fmt.Printf("  %v\n", msgType)
 						messageType = msgType
 					}
-					fmt.Println("\t", (file.(data)).fileName)
+					fmt.Printf("        %v\n", (file.(data)).fileName)
 				}
 			}
-			fmt.Println()
+			fmt.Printf("\n")
 		}
 	}
 }
