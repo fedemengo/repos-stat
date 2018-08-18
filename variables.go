@@ -1,6 +1,6 @@
 package main
 
-import(
+import (
 	"github.com/bclicn/color"
 )
 
@@ -10,6 +10,7 @@ var Message = map[byte]string{
 	'A': color.Green("ADDED"),
 	'D': color.Red("DELETED"),
 	'M': color.Yellow("MODIFIED"),
+	'R': color.LightGreen("RENAMED"),
 	'?': color.Purple("UNTRACKED"),
 	'-': color.Green("CLEAN"),
 }
@@ -21,4 +22,3 @@ var Location = [...]string{
 
 var ErrorSymbol = color.Red("X")
 var SkipDir = color.Cyan("Directory to SKIP:")
-
