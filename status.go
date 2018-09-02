@@ -74,7 +74,7 @@ func printRepo(path string, files []string, broken, clean bool) {
 	if clean {
 		fmt.Printf("%v\n\n", Message['-'])
 	} else {
-		var container [2]heapData
+		container := make([]heapData, 2)
 		for _, h := range container {
 			h = make(heapData, 10)
 			heap.Init(&h)
@@ -96,10 +96,9 @@ func printRepo(path string, files []string, broken, clean bool) {
 			}
 		}
 
-		var messageType string
 		for idx := range container {
+			messageType := ""
 			fmt.Printf("%v\n", Location[idx])
-			
 			if container[idx].Len() == 0 {
 				fmt.Printf("  %v\n", Message['-'])
 			} else {

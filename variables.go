@@ -11,6 +11,7 @@ var Message = map[byte]string{
 	'D': color.Red("DELETED"),
 	'M': color.Yellow("MODIFIED"),
 	'R': color.LightGreen("RENAMED"),
+	'U': color.Purple("UNMERGED"),
 	'?': color.Purple("UNTRACKED"),
 	'-': color.Green("CLEAN"),
 }
