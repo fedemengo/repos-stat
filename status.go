@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
-	"container/heap"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/fedemengo/go-data-structures/heap"
 )
 
 // GetStatus display the status of each repo
@@ -39,31 +40,6 @@ func GetStatus(repoPath string, skipClean, skipBroken bool) error {
 	return filepath.SkipDir
 }
 
-type data struct {
-	code     byte
-	fileName string
-}
-
-type heapData []data
-
-func (h heapData) Len() int           { return len(h) }
-func (h heapData) Less(i, j int) bool { return h[i].code < h[j].code }
-func (h heapData) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-// Push insert an element into the heap
-func (h *heapData) Push(x interface{}) {
-	*h = append(*h, x.(data))
-}
-
-// Pop remove the element on top of the heap according to the heap priority
-func (h *heapData) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
 func printRepo(path string, files []string, broken, clean bool) {
 	if broken {
 		fmt.Printf("%v %v\n\n", PathColored(path), ErrorSymbol)
@@ -74,10 +50,11 @@ func printRepo(path string, files []string, broken, clean bool) {
 	if clean {
 		fmt.Printf("%v\n\n", Message['-'])
 	} else {
-		container := make([]heapData, 2)
-		for _, h := range container {
-			h = make(heapData, 10)
-			heap.Init(&h)
+		container := make([]*heap.Heap, 2)
+		for i := range container {
+			container[i] = heap.NewHeap(func(e1, e2 heap.Elem) bool {
+				return e1.Key.(byte) < e2.Key.(byte)
+			})
 		}
 
 		for _, file := range files {
@@ -91,7 +68,7 @@ func printRepo(path string, files []string, broken, clean bool) {
 
 			for idx := range container {
 				if c := file[idx]; c != ' ' {
-					heap.Push(&container[idx], data{code: c, fileName: file[2:]})
+					container[idx].Push(heap.Elem{Key: c, Val: file[2:]})
 				}
 			}
 		}
@@ -99,17 +76,17 @@ func printRepo(path string, files []string, broken, clean bool) {
 		for idx := range container {
 			messageType := ""
 			fmt.Printf("%v\n", Location[idx])
-			if container[idx].Len() == 0 {
+			if container[idx].Size() == 0 {
 				fmt.Printf("  %v\n", Message['-'])
 			} else {
-				for container[idx].Len() > 0 {
-					file := heap.Pop(&container[idx])
-					msgType := Message[(file.(data)).code]
+				for container[idx].Size() > 0 {
+					file := container[idx].Pop()
+					msgType := Message[file.Key.(byte)]
 					if messageType != msgType {
 						fmt.Printf("  %v\n", msgType)
 						messageType = msgType
 					}
-					fmt.Printf("        %v\n", (file.(data)).fileName)
+					fmt.Printf("        %v\n", file.Val.(string))
 				}
 			}
 			fmt.Printf("\n")
